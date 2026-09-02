@@ -116,7 +116,72 @@ function renderProducts() {
   `).join("");
 }
 
-function ask(text) {
+async function ask(text) {
+  const input = document.getElementById("q");
+  const answer = document.getElementById("answer");
+
+  const question = (text || input?.value || "").trim();
+
+  if (!question) {
+    if (answer) {
+      answer.innerHTML = "<p>اكتب سؤالك أولًا.</p>";
+    }
+    return;
+  }
+
+  if (answer) {
+    answer.innerHTML = `
+      <div class="assistant-answer">
+        <p>جاري التفكير... 🤖</p>
+      </div>
+    `;
+  }
+
+  try {
+    const response = await fetch("/ask", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        question: question
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "حدث خطأ");
+    }
+
+    if (answer) {
+      answer.innerHTML = `
+        <div class="assistant-answer">
+          <p>${escapeHTML(data.answer || "لم تصل إجابة.")}</p>
+          <small>
+            المعلومات المعروضة معلومات عامة وليست تشخيصًا أو وصفة علاجية.
+          </small>
+        </div>
+      `;
+    }
+
+    if (input) {
+      input.value = "";
+    }
+
+  } catch (error) {
+    console.error(error);
+
+    if (answer) {
+      answer.innerHTML = `
+        <div class="assistant-answer">
+          <p>تعذر الاتصال بالوكيل الذكي حاليًا.</p>
+          <small>تأكد من تشغيل الخادم وإعداد مفتاح OpenAI بشكل صحيح.</small>
+        </div>
+      `;
+    }
+  }
+}
   const input = document.getElementById("q");
   const answer = document.getElementById("answer");
 
