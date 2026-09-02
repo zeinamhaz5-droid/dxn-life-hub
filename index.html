@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DXN Life Hub by Zain</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><div class="mark">DXN</div><div><strong>DXN Life Hub</strong><small>by Zain</small></div></div>
+  <button class="menu" onclick="document.querySelector('.nav').classList.toggle('open')">☰</button>
+  <nav class="nav">
+    <a href="#home">الرئيسية</a><a href="#products">المنتجات</a><a href="#work">فرصة العمل</a><a href="#assistant">المساعد الذكي</a><a href="#contact">تواصل معنا</a>
+  </nav>
+</header>
+
+<main>
+<section id="home" class="hero">
+  <div class="hero-copy">
+    <span class="eyebrow">منصة معلومات وطلبات</span>
+    <h1>اكتشف منتجات DXN<br><em>بطريقة أذكى.</em></h1>
+    <p>تصفح المنتجات والأسعار، تعرّف على الخيارات المناسبة لك، واسأل المساعد الذكي عن المنتجات أو فرصة العمل.</p>
+    <div class="actions"><a class="btn primary" href="#products">تصفح المنتجات</a><a class="btn ghost" href="#assistant">اسأل المساعد الذكي</a></div>
+  </div>
+  <div class="hero-card"><div class="orb">AI</div><h3>مساعد DXN الذكي</h3><p>يساعد الزائر في الوصول للمعلومة والمنتج المناسب بسرعة.</p><div class="chips"><span>منتجات</span><span>أسعار</span><span>فرصة العمل</span></div></div>
+</section>
+
+<section class="trust"><div><b>63</b><span>منتج مدرج</span></div><div><b>4</b><span>أقسام رئيسية</span></div><div><b>24/7</b><span>مساعد ذكي</span></div></section>
+
+<section id="products" class="section">
+  <div class="section-head"><div><span class="eyebrow">كتالوج المنتجات</span><h2>اختَر ما تبحث عنه بسهولة</h2></div>
+  <input id="search" placeholder="ابحث عن منتج..." oninput="renderProducts()"></div>
+  <div class="filters" id="filters"></div>
+  <div class="grid" id="grid"></div>
+</section>
+
+<section id="work" class="dark-section">
+  <div><span class="eyebrow">فرصة العمل</span><h2>ابدأ بخطوة واضحة،<br>وافهم المشروع أولًا.</h2><p>قسم مخصص لشرح فكرة العمل، طريقة البدء، الأسئلة الشائعة، وآلية التواصل مع الفريق — بدون وعود بأرباح مضمونة.</p><a class="btn primary" href="#contact">أريد معرفة التفاصيل</a></div>
+  <div class="steps"><div><b>01</b><span>تعرّف على الفكرة</span></div><div><b>02</b><span>اسأل عن التفاصيل</span></div><div><b>03</b><span>اختر طريقة البدء</span></div></div>
+</section>
+
+<section id="assistant" class="section assistant">
+  <div class="section-head"><div><span class="eyebrow">الوكيل الذكي</span><h2>مساعدك داخل الموقع</h2></div></div>
+  <div class="chat"><div class="bot"><div class="avatar">AI</div><div><b>مرحبًا 👋</b><p>أنا مساعد DXN Life Hub. اسألني عن منتج، سعر، قسم، أو فرصة العمل.</p></div></div>
+  <div class="quick">
+<button onclick="ask('ما هي المنتجات المتوفرة؟')">🛍️ المنتجات</button>
+<button onclick="ask('أريد معرفة الأسعار')">💰 الأسعار</button>
+<button onclick="ask('أريد مساعدة في اختيار منتج')">✨ ساعدني أختار</button>
+<button onclick="ask('أريد معرفة فرصة العمل')">💼 فرصة العمل</button>
+</div>
+  <div class="chatbar"><input id="q" placeholder="اكتب سؤالك هنا..."><button onclick="ask()">إرسال</button></div><div id="answer"></div>
+<div class="leadbox"><h3>📩 تريد أن يتواصل معك فريقنا؟</h3>
+<p>اترك اسمك ورقم التواصل، وسنجهّز طلب التواصل.</p>
+<div class="leadrow"><input id="leadName" placeholder="الاسم"><input id="leadPhone" placeholder="رقم الهاتف"></div>
+<button class="btn primary" onclick="saveLead()">إرسال طلب التواصل</button><div id="leadMsg"></div></div></div>
+</section>
+
+<section id="contact" class="contact"><span class="eyebrow">تواصل</span><h2>هل تريد مساعدة في اختيار المنتج أو معرفة التفاصيل؟</h2><p>في النسخة القادمة سنربط هذا القسم مباشرة بقنوات التواصل والطلبات.</p></section>
+</main>
+
+<footer><strong>DXN Life Hub by Zain</strong><span>منصة مستقلة للمعلومات والطلبات — ليست الموقع الرسمي للشركة.</span></footer>
+<script src="app.js"></script>
+</body></html>
