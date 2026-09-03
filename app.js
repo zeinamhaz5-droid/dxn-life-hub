@@ -346,6 +346,324 @@ function renderProducts() {
 
 
 /* =========================
+   العداد التنازلي
+========================= */
+
+let countdownTimer = null;
+
+let countdownSeconds = 45;
+
+let currentStatusIndex = 0;
+
+
+/* رسائل الانتظار */
+
+const waitingMessages = [
+
+  "🤖 جاري تشغيل الوكيل الذكي...",
+
+  "🧠 جاري تحليل سؤالك...",
+
+  "🔎 جاري البحث عن المعلومات المناسبة...",
+
+  "📚 جاري مراجعة المعلومات المتاحة...",
+
+  "✨ جاري تجهيز أفضل إجابة لك..."
+
+];
+
+
+/* =========================
+   بدء العداد
+========================= */
+
+function startCountdown() {
+
+  stopCountdown();
+
+  countdownSeconds = 45;
+
+  currentStatusIndex = 0;
+
+
+  updateWaitingMessage();
+
+
+  countdownTimer = setInterval(() => {
+
+    countdownSeconds--;
+
+    updateWaitingMessage();
+
+
+    if (countdownSeconds <= 0) {
+
+      stopCountdown();
+
+    }
+
+  }, 1000);
+
+}
+
+
+/* =========================
+   تحديث رسالة الانتظار
+========================= */
+
+function updateWaitingMessage() {
+
+  const status =
+    document.getElementById(
+      "aiWaitingStatus"
+    );
+
+  const timer =
+    document.getElementById(
+      "aiCountdown"
+    );
+
+
+  if (timer) {
+
+    timer.textContent =
+      countdownSeconds + " ثانية";
+
+  }
+
+
+  if (status) {
+
+    status.textContent =
+      waitingMessages[currentStatusIndex];
+
+  }
+
+
+  /*
+   * تغيير الرسالة كل عدة ثوانٍ
+   */
+
+  if (
+    countdownSeconds % 5 === 0 &&
+    countdownSeconds !== 45
+  ) {
+
+    currentStatusIndex =
+
+      (currentStatusIndex + 1) %
+      waitingMessages.length;
+
+  }
+
+}
+
+
+/* =========================
+   إيقاف العداد
+========================= */
+
+function stopCountdown() {
+
+  if (countdownTimer) {
+
+    clearInterval(
+      countdownTimer
+    );
+
+    countdownTimer = null;
+
+  }
+
+}
+
+
+/* =========================
+   عرض شاشة الانتظار
+========================= */
+
+function showWaitingScreen() {
+
+  const answer =
+    document.getElementById(
+      "answer"
+    );
+
+  if (!answer) return;
+
+
+  answer.innerHTML = `
+
+    <div
+      class="assistant-answer"
+      style="
+        text-align:center;
+        padding:15px;
+      "
+    >
+
+      <div
+        id="aiWaitingStatus"
+        style="
+          font-weight:bold;
+          margin-bottom:8px;
+        "
+      >
+        🤖 جاري تشغيل الوكيل الذكي...
+      </div>
+
+
+      <div
+        style="
+          font-size:13px;
+          opacity:.75;
+          margin-bottom:8px;
+        "
+      >
+        لحظات ونجهّز لك الإجابة...
+      </div>
+
+
+      <div
+        style="
+          display:inline-block;
+          padding:5px 10px;
+          border-radius:20px;
+          background:rgba(255,193,7,.12);
+          font-size:12px;
+        "
+      >
+
+        ⏳
+
+        <span id="aiCountdown">
+          45 ثانية
+        </span>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  startCountdown();
+
+}
+
+
+/* =========================
+   عرض المصادر
+========================= */
+
+function renderSources(sources) {
+
+  if (
+    !Array.isArray(sources) ||
+    !sources.length
+  ) {
+
+    return "";
+
+  }
+
+
+  const uniqueSources = [];
+
+  const seen = new Set();
+
+
+  sources.forEach(source => {
+
+    if (
+      !source ||
+      !source.url ||
+      seen.has(source.url)
+    ) {
+
+      return;
+
+    }
+
+
+    seen.add(
+      source.url
+    );
+
+
+    uniqueSources.push(
+      source
+    );
+
+  });
+
+
+  if (!uniqueSources.length) {
+
+    return "";
+
+  }
+
+
+  return `
+
+    <details
+      style="
+        margin-top:15px;
+      "
+    >
+
+      <summary>
+        🔗 مصادر المعلومات
+      </summary>
+
+
+      <div
+        style="
+          margin-top:8px;
+        "
+      >
+
+        ${uniqueSources
+          .slice(0, 5)
+          .map(source => `
+
+            <div
+              style="
+                margin:7px 0;
+              "
+            >
+
+              <a
+                href="${escapeAttr(
+                  source.url
+                )}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+
+                ${escapeHTML(
+                  source.title ||
+                  "مصدر خارجي"
+                )}
+
+              </a>
+
+            </div>
+
+          `)
+          .join("")}
+
+      </div>
+
+    </details>
+
+  `;
+
+}
+
+
+/* =========================
    الوكيل الذكي
 ========================= */
 
@@ -423,28 +741,10 @@ async function ask(text) {
 
 
   /* =========================
-     رسالة الانتظار
+     شاشة الانتظار + العداد
   ========================= */
 
-  if (answer) {
-
-    answer.innerHTML = `
-
-      <div class="assistant-answer">
-
-        <p>
-          🤖 جاري الاتصال بالوكيل الذكي...
-        </p>
-
-        <small>
-          يرجى الانتظار...
-        </small>
-
-      </div>
-
-    `;
-
-  }
+  showWaitingScreen();
 
 
   try {
@@ -565,6 +865,68 @@ async function ask(text) {
 
 
     /* =========================
+       إيقاف العداد
+    ========================= */
+
+    stopCountdown();
+
+
+    /* =========================
+       معلومات إضافية
+    ========================= */
+
+    let extraInfo = "";
+
+
+    if (data.cached === true) {
+
+      extraInfo += `
+
+        <small
+          style="
+            display:block;
+            margin-top:8px;
+            opacity:.7;
+          "
+        >
+          ⚡ تم استرجاع الإجابة بسرعة من الذاكرة المؤقتة.
+        </small>
+
+      `;
+
+    }
+
+
+    if (data.web_search === true) {
+
+      extraInfo += `
+
+        <small
+          style="
+            display:block;
+            margin-top:8px;
+            opacity:.7;
+          "
+        >
+          🔎 تم استخدام البحث الخارجي للمساعدة في الإجابة.
+        </small>
+
+      `;
+
+    }
+
+
+    /* =========================
+       المصادر
+    ========================= */
+
+    const sourcesHTML =
+      renderSources(
+        data.sources
+      );
+
+
+    /* =========================
        عرض الإجابة
     ========================= */
 
@@ -580,7 +942,19 @@ async function ask(text) {
 
           </p>
 
-          <small>
+
+          ${extraInfo}
+
+
+          ${sourcesHTML}
+
+
+          <small
+            style="
+              display:block;
+              margin-top:12px;
+            "
+          >
 
             المعلومات المعروضة معلومات عامة
             وليست تشخيصًا أو وصفة علاجية.
@@ -606,6 +980,13 @@ async function ask(text) {
 
 
   } catch (error) {
+
+    /* =========================
+       إيقاف العداد عند الخطأ
+    ========================= */
+
+    stopCountdown();
+
 
     console.error(
       "================================="
@@ -637,7 +1018,7 @@ async function ask(text) {
         <div class="assistant-answer">
 
           <p>
-            ❌ تعذر الاتصال بالوكيل الذكي.
+            ❌ تعذر الحصول على الإجابة حاليًا.
           </p>
 
           <small>
