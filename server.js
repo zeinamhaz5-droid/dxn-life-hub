@@ -13,40 +13,58 @@ app.use((req, res, next) => {
 
 app.use(express.static("."));
 
+
 /* =========================
    إعداد Gemini
 ========================= */
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY =
+  process.env.GEMINI_API_KEY;
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL =
+  "gemini-3.6-flash";
+
 
 if (!GEMINI_API_KEY) {
-  console.error("❌ GEMINI_API_KEY غير موجود في Environment Variables");
+
+  console.error(
+    "❌ GEMINI_API_KEY غير موجود في Environment Variables"
+  );
+
 } else {
-  console.log("✅ GEMINI_API_KEY موجود");
+
+  console.log(
+    "✅ GEMINI_API_KEY موجود"
+  );
+
 }
 
+
 /* =========================
-   تحميل قاعدة بيانات المنتجات
+   تحميل قاعدة المنتجات
 ========================= */
 
 let knowledgeBase = {
   products: []
 };
 
+
 try {
-  const filePath = path.join(
-    __dirname,
-    "knowledge_base.json"
-  );
 
-  const data = fs.readFileSync(
-    filePath,
-    "utf8"
-  );
+  const filePath =
+    path.join(
+      __dirname,
+      "knowledge_base.json"
+    );
 
-  knowledgeBase = JSON.parse(data);
+  const data =
+    fs.readFileSync(
+      filePath,
+      "utf8"
+    );
+
+  knowledgeBase =
+    JSON.parse(data);
 
   console.log(
     `✅ تم تحميل ${
@@ -63,55 +81,71 @@ try {
 
 }
 
+
 /* =========================
-   نقطة اتصال الوكيل الذكي
+   الوكيل الذكي
 ========================= */
 
 app.post("/ask", async (req, res) => {
 
   try {
 
-    console.log("=================================");
-    console.log("🤖 GEMINI AI AGENT");
-    console.log("=================================");
+    console.log(
+      "================================="
+    );
+
+    console.log(
+      "🤖 GEMINI AI AGENT"
+    );
+
+    console.log(
+      "================================="
+    );
+
 
     /* =========================
-       التحقق من المفتاح
+       فحص المفتاح
     ========================= */
 
     if (!GEMINI_API_KEY) {
 
-      console.error(
-        "❌ GEMINI_API_KEY غير موجود"
-      );
-
       return res.status(500).json({
+
         error:
-          "مفتاح Gemini غير موجود في إعدادات الخادم."
+          "مفتاح Gemini غير موجود في إعدادات Render."
+
       });
 
     }
 
+
     /* =========================
-       قراءة السؤال
+       السؤال
     ========================= */
 
-    const question = String(
-      req.body.question || ""
-    ).trim();
+    const question =
+      String(
+        req.body.question || ""
+      ).trim();
+
 
     console.log(
       "السؤال:",
       question
     );
 
+
     if (!question) {
 
       return res.status(400).json({
-        error: "اكتب السؤال أولاً"
+
+        error:
+          "اكتب السؤال أولاً"
+
       });
 
     }
+
 
     /* =========================
        تجهيز المنتجات
@@ -119,6 +153,7 @@ app.post("/ask", async (req, res) => {
 
     const products =
       knowledgeBase.products || [];
+
 
     const productData =
       products.map(product => ({
@@ -146,35 +181,50 @@ app.post("/ask", async (req, res) => {
 
       }));
 
+
     /* =========================
        تعليمات الوكيل
     ========================= */
 
     const systemInstruction = `
+
 أنت الوكيل الذكي لمشروع DXN Life Hub.
+
+اسمك:
+وكيل DXN Life Hub الذكي.
 
 مهمتك مساعدة المستخدم باللغة العربية الواضحة والبسيطة.
 
-قواعد مهمة جدًا:
+القواعد:
 
 1. استخدم قاعدة بيانات المنتجات الموجودة في الطلب.
+
 2. عند السؤال عن منتج، اعتمد على المعلومات الموجودة في قاعدة البيانات.
+
 3. عند السؤال عن السعر، استخدم السعر الموجود في قاعدة البيانات فقط.
+
 4. لا تخترع أي سعر.
-5. لا تخترع معلومات عن المنتجات.
-6. إذا لم تجد المعلومة في قاعدة البيانات، قل بوضوح:
+
+5. لا تخترع معلومات غير موجودة.
+
+6. إذا لم تجد المعلومة، قل:
 "هذه المعلومة غير متوفرة حاليًا في قاعدة البيانات."
+
 7. لا تقدم تشخيصًا طبيًا.
+
 8. لا تقدم وصفات علاجية.
+
 9. لا تقل إن أي منتج يعالج مرضًا.
+
 10. لا تقدم وعودًا بأرباح مضمونة.
+
 11. عند السؤال عن العمل في DXN، قدم معلومات عامة فقط دون ضمان الأرباح.
-12. كن مفيدًا ومختصرًا وواضحًا.
+
+12. كن واضحًا ومفيدًا ومختصرًا.
+
 13. أجب باللغة العربية.
-14. لا تقل للمستخدم إنك OpenAI.
-15. عرّف نفسك عند الحاجة باسم:
-"وكيل DXN Life Hub الذكي".
-16. إذا كان السؤال خارج نطاق DXN Life Hub، يمكنك الرد باختصار ثم توضيح أنك متخصص في مساعدة المستخدم بخصوص المشروع والمنتجات.
+
+14. إذا كان السؤال خارج نطاق DXN Life Hub، أجب باختصار ثم وضح أنك متخصص في المشروع ومنتجاته.
 
 قاعدة بيانات المنتجات:
 
@@ -183,10 +233,12 @@ ${JSON.stringify(
   null,
   2
 )}
+
 `;
 
+
     /* =========================
-       إرسال الطلب إلى Gemini
+       رابط Gemini
     ========================= */
 
     const url =
@@ -194,54 +246,81 @@ ${JSON.stringify(
         GEMINI_API_KEY
       )}`;
 
+
     console.log(
       "📡 إرسال الطلب إلى Gemini..."
     );
 
-    const response = await fetch(
-      url,
-      {
-        method: "POST",
+    console.log(
+      "🧠 النموذج:",
+      GEMINI_MODEL
+    );
 
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
 
-        body: JSON.stringify({
+    /* =========================
+       إرسال الطلب
+    ========================= */
 
-          systemInstruction: {
-            parts: [
-              {
-                text:
-                  systemInstruction
-              }
-            ]
+    const response =
+      await fetch(
+        url,
+        {
+
+          method: "POST",
+
+          headers: {
+
+            "Content-Type":
+              "application/json"
+
           },
 
-          contents: [
-            {
-              role: "user",
+          body: JSON.stringify({
+
+            systemInstruction: {
 
               parts: [
+
                 {
-                  text: question
+                  text:
+                    systemInstruction
                 }
+
               ]
+
+            },
+
+            contents: [
+
+              {
+
+                role: "user",
+
+                parts: [
+
+                  {
+                    text:
+                      question
+                  }
+
+                ]
+
+              }
+
+            ],
+
+            generationConfig: {
+
+              maxOutputTokens:
+                700
+
             }
-          ],
 
-          generationConfig: {
+          })
 
-            temperature: 0.3,
+        }
+      );
 
-            maxOutputTokens: 700
-
-          }
-
-        })
-      }
-    );
 
     console.log(
       "📥 Gemini status:",
@@ -249,16 +328,14 @@ ${JSON.stringify(
       response.statusText
     );
 
+
     /* =========================
-       قراءة رد Gemini
+       قراءة الرد
     ========================= */
 
     const data =
       await response.json();
 
-    console.log(
-      "📦 Gemini response received"
-    );
 
     /* =========================
        معالجة الخطأ
@@ -267,7 +344,10 @@ ${JSON.stringify(
     if (!response.ok) {
 
       console.error(
-        "❌ Gemini API Error:",
+        "❌ Gemini API Error:"
+      );
+
+      console.error(
         JSON.stringify(
           data,
           null,
@@ -275,17 +355,23 @@ ${JSON.stringify(
         )
       );
 
-      const message =
+
+      const errorMessage =
         data?.error?.message ||
         "حدث خطأ أثناء الاتصال بـ Gemini.";
+
 
       return res.status(
         response.status
       ).json({
-        error: message
+
+        error:
+          errorMessage
+
       });
 
     }
+
 
     /* =========================
        استخراج الإجابة
@@ -294,39 +380,50 @@ ${JSON.stringify(
     const answer =
       data?.candidates?.[0]
         ?.content?.parts
-        ?.map(part => part.text || "")
+        ?.map(
+          part =>
+            part.text || ""
+        )
         .join("")
         .trim();
+
 
     if (!answer) {
 
       console.error(
-        "❌ Gemini لم يرجع نصًا."
+        "❌ Gemini لم يرجع إجابة."
       );
 
       return res.status(500).json({
+
         error:
           "وصل رد من Gemini ولكن لم تصل إجابة نصية."
+
       });
 
     }
 
+
     console.log(
-      "✅ وصلت إجابة Gemini"
+      "✅ وصلت إجابة Gemini:"
     );
 
     console.log(
-      "الإجابة:",
       answer
     );
+
 
     /* =========================
        إرسال الإجابة للموقع
     ========================= */
 
-    res.json({
-      answer: answer
+    return res.json({
+
+      answer:
+        answer
+
     });
+
 
   } catch (error) {
 
@@ -335,7 +432,7 @@ ${JSON.stringify(
     );
 
     console.error(
-      "❌ GEMINI AI AGENT ERROR"
+      "❌ GEMINI ERROR"
     );
 
     console.error(
@@ -346,14 +443,18 @@ ${JSON.stringify(
       "================================="
     );
 
-    res.status(500).json({
+
+    return res.status(500).json({
+
       error:
         "حدث خطأ أثناء الاتصال بالوكيل الذكي."
+
     });
 
   }
 
 });
+
 
 /* =========================
    تشغيل الخادم
@@ -361,6 +462,7 @@ ${JSON.stringify(
 
 const PORT =
   process.env.PORT || 3000;
+
 
 app.listen(
   PORT,
@@ -371,7 +473,7 @@ app.listen(
     );
 
     console.log(
-      `🤖 AI Provider: Gemini`
+      "🤖 AI Provider: Gemini"
     );
 
     console.log(
