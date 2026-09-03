@@ -1,5 +1,5 @@
-let products = [];
 let activeCategory = "الكل";
+let products = [];
 
 /* =========================
    تحميل قاعدة بيانات المنتجات
@@ -136,7 +136,6 @@ function renderProducts() {
 
         </div>
 
-
         <h3>
           ${escapeHTML(
             product.name_ar ||
@@ -145,17 +144,13 @@ function renderProducts() {
           )}
         </h3>
 
-
         <p class="price">
-
           ${
             product.price_non_member != null
               ? escapeHTML(product.price_non_member) + " $"
               : "السعر غير متوفر"
           }
-
         </p>
-
 
         ${
           product.general_info
@@ -166,7 +161,6 @@ function renderProducts() {
             `
             : ""
         }
-
 
         <details>
 
@@ -181,7 +175,6 @@ function renderProducts() {
             )}
           </p>
 
-
           ${
             product.information_source
               ? `
@@ -193,9 +186,7 @@ function renderProducts() {
                     )}"
                     target="_blank"
                     rel="noopener noreferrer">
-
                     مصدر DXN
-
                   </a>
                 </small>
               `
@@ -227,6 +218,8 @@ async function ask(text) {
   ).trim();
 
 
+  /* التحقق من السؤال */
+
   if (!question) {
 
     if (answer) {
@@ -241,30 +234,45 @@ async function ask(text) {
   }
 
 
+  /* تسجيل الاختبار */
+
+  console.log("=================================");
+  console.log("🤖 AI AGENT TEST");
+  console.log("السؤال:", question);
+  console.log("إرسال الطلب إلى: /ask");
+  console.log("=================================");
+
+
   /* رسالة الانتظار */
 
   if (answer) {
 
     answer.innerHTML = `
       <div class="assistant-answer">
-
         <p>
-          🤖 جاري التفكير...
+          🤖 جاري الاتصال بالوكيل الذكي...
         </p>
-
+        <small>
+          يرجى الانتظار...
+        </small>
       </div>
     `;
+
   }
 
 
   try {
+
+    console.log("📡 بدء إرسال الطلب...");
+
 
     const response = await fetch("/ask", {
 
       method: "POST",
 
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
       },
 
       body: JSON.stringify({
@@ -274,23 +282,70 @@ async function ask(text) {
     });
 
 
-    const data = await response.json();
+    console.log(
+      "📥 استجابة الخادم:",
+      response.status,
+      response.statusText
+    );
 
 
-    if (!response.ok) {
+    /* قراءة الاستجابة */
+
+    const contentType =
+      response.headers.get("content-type") || "";
+
+
+    let data;
+
+
+    if (contentType.includes("application/json")) {
+
+      data = await response.json();
+
+    } else {
+
+      const textResponse =
+        await response.text();
+
+      console.error(
+        "❌ الخادم لم يرجع JSON:",
+        textResponse
+      );
 
       throw new Error(
-        data.error ||
-        "حدث خطأ أثناء الاتصال بالوكيل"
+        "الخادم لم يرجع استجابة JSON صحيحة."
       );
 
     }
 
 
+    console.log("📦 بيانات الخادم:", data);
+
+
+    /* فحص حالة الطلب */
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.error ||
+        `خطأ من الخادم: ${response.status}`
+      );
+
+    }
+
+
+    /* الحصول على الإجابة */
+
     const reply =
       data.answer ||
       "لم تصل إجابة من الوكيل الذكي.";
 
+
+    console.log("✅ وصلت إجابة الوكيل:");
+    console.log(reply);
+
+
+    /* عرض الإجابة */
 
     if (answer) {
 
@@ -312,6 +367,8 @@ async function ask(text) {
     }
 
 
+    /* مسح السؤال */
+
     if (input) {
       input.value = "";
     }
@@ -319,10 +376,11 @@ async function ask(text) {
 
   } catch (error) {
 
-    console.error(
-      "AI Agent Error:",
-      error
-    );
+    console.error("=================================");
+    console.error("❌ AI AGENT ERROR");
+    console.error("الخطأ:", error);
+    console.error("رسالة الخطأ:", error.message);
+    console.error("=================================");
 
 
     if (answer) {
@@ -331,13 +389,13 @@ async function ask(text) {
         <div class="assistant-answer">
 
           <p>
-            ❌ تعذر الاتصال بالوكيل الذكي حاليًا.
+            ❌ تعذر الاتصال بالوكيل الذكي.
           </p>
 
           <small>
             ${escapeHTML(
               error.message ||
-              "تأكد من تشغيل الخادم."
+              "حدث خطأ غير معروف."
             )}
           </small>
 
