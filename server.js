@@ -19,7 +19,6 @@ const MAX_OUTPUT_TOKENS = 1800;
 const REQUEST_TIMEOUT_MS = 45000;
 const MAX_RETRIES = 2;
 
-/* ذاكرة الأسئلة المتكررة */
 const ANSWER_CACHE_TTL = 30 * 60 * 1000;
 const MAX_CACHE_ITEMS = 500;
 
@@ -49,9 +48,7 @@ let knowledgeBase = {
 function loadKnowledgeBase() {
   try {
     if (!fs.existsSync(KNOWLEDGE_PATH)) {
-      console.warn(
-        "⚠️ knowledge_base.json غير موجود"
-      );
+      console.warn("⚠️ knowledge_base.json غير موجود");
       return;
     }
 
@@ -68,6 +65,10 @@ function loadKnowledgeBase() {
       knowledgeBase.products = [];
     }
 
+    if (typeof knowledgeBase.policy !== "string") {
+      knowledgeBase.policy = "";
+    }
+
     console.log(
       `📚 قاعدة المعرفة: ${knowledgeBase.products.length} منتج`
     );
@@ -77,6 +78,11 @@ function loadKnowledgeBase() {
       "❌ خطأ في قاعدة المعرفة:",
       error.message
     );
+
+    knowledgeBase = {
+      products: [],
+      policy: ""
+    };
   }
 }
 
@@ -127,7 +133,6 @@ function productText(product) {
 }
 
 function scoreProduct(product, question) {
-
   const q = normalizeArabic(question);
   const tokens = tokenize(question);
 
@@ -163,7 +168,6 @@ function scoreProduct(product, question) {
   }
 
   for (const token of tokens) {
-
     if (
       token.length >= 3 &&
       name.includes(token)
@@ -201,7 +205,6 @@ function findRelevantProducts(
   question,
   limit = 10
 ) {
-
   return knowledgeBase.products
     .map(product => ({
       product,
@@ -224,7 +227,6 @@ function findRelevantProducts(
 ========================================================= */
 
 function compactProduct(product) {
-
   return {
     id: product.id || null,
 
@@ -464,7 +466,6 @@ const SYSTEM_INSTRUCTION = `
 ========================================================= */
 
 function getQuestionKey(question) {
-
   return crypto
     .createHash("sha256")
     .update(
@@ -474,7 +475,6 @@ function getQuestionKey(question) {
 }
 
 function getCachedAnswer(question) {
-
   const key = getQuestionKey(question);
 
   const item = answerCache.get(key);
@@ -499,7 +499,6 @@ function saveCachedAnswer(
   answer,
   sources = []
 ) {
-
   const key = getQuestionKey(question);
 
   answerCache.set(key, {
@@ -508,12 +507,10 @@ function saveCachedAnswer(
     createdAt: Date.now()
   });
 
-  /* منع الذاكرة من النمو بلا حدود */
   while (
     answerCache.size >
     MAX_CACHE_ITEMS
   ) {
-
     const firstKey =
       answerCache.keys().next().value;
 
@@ -522,14 +519,13 @@ function saveCachedAnswer(
 }
 
 /* =========================================================
-   السياق
+   بناء السياق
 ========================================================= */
 
 function buildContext(
   question,
   relevantProducts
 ) {
-
   const products =
     relevantProducts.map(
       compactProduct
@@ -570,13 +566,23 @@ ${knowledgeBase.policy ||
 }
 
 /* =========================================================
-   استدعاء Gemini + Google Search
+   Gemini
 ========================================================= */
 
 async function callGemini(
   model,
   contents
 ) {
+  if (!GEMINI_API_KEY) {
+    const error =
+      new Error(
+        "GEMINI_API_KEY غير موجود في Environment Variables"
+      );
+
+    error.status = 500;
+
+    throw error;
+  }
 
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/` +
@@ -591,10 +597,8 @@ async function callGemini(
     }, REQUEST_TIMEOUT_MS);
 
   try {
-
     const response =
       await fetch(url, {
-
         method: "POST",
 
         headers: {
@@ -606,7 +610,6 @@ async function callGemini(
         },
 
         body: JSON.stringify({
-
           systemInstruction: {
             parts: [
               {
@@ -616,12 +619,7 @@ async function callGemini(
             ]
           },
 
-          contents,
-
-          /*
-             ⭐ هنا الإضافة المهمة:
-             السماح لـ Gemini باستخدام Google Search
-          */
+          contents: contents,
 
           tools: [
             {
@@ -630,13 +628,9 @@ async function callGemini(
           ],
 
           generationConfig: {
-
             maxOutputTokens:
-              MAX_OUTPUT_TOKENS,
-
-            temperature: 0.75
+              MAX_OUTPUT_TOKENS
           }
-
         }),
 
         signal:
@@ -650,15 +644,35 @@ async function callGemini(
 
     try {
       data = JSON.parse(raw);
-    } catch {}
+    } catch {
+      console.error(
+        "❌ رد Gemini ليس JSON:"
+      );
+
+      console.error(raw);
+    }
 
     if (!response.ok) {
+      const message =
+        data?.error?.message ||
+        `Gemini HTTP ${response.status}`;
+
+      console.error(
+        "❌ Gemini API Error"
+      );
+
+      console.error(
+        "Status:",
+        response.status
+      );
+
+      console.error(
+        "Message:",
+        message
+      );
 
       const error =
-        new Error(
-          data?.error?.message ||
-          `Gemini HTTP ${response.status}`
-        );
+        new Error(message);
 
       error.status =
         response.status;
@@ -669,24 +683,54 @@ async function callGemini(
     const candidate =
       data?.candidates?.[0];
 
+    if (!candidate) {
+      console.error(
+        "❌ Gemini response:"
+      );
+
+      console.error(
+        JSON.stringify(
+          data,
+          null,
+          2
+        )
+      );
+
+      throw new Error(
+        "Gemini لم يرجع candidate"
+      );
+    }
+
     const answer =
       candidate?.content?.parts
         ?.map(
           part =>
-            part.text || ""
+            part?.text || ""
         )
         .join("")
         .trim();
 
     if (!answer) {
+      console.error(
+        "❌ Gemini لم يرجع إجابة نصية"
+      );
+
+      console.error(
+        JSON.stringify(
+          data,
+          null,
+          2
+        )
+      );
+
       throw new Error(
         "Gemini لم يرجع إجابة نصية"
       );
     }
 
-    /*
-       استخراج مصادر Google
-    */
+    /* =====================================================
+       استخراج مصادر Google Search
+    ===================================================== */
 
     const sources = [];
 
@@ -695,7 +739,6 @@ async function callGemini(
         ?.groundingChunks || [];
 
     for (const chunk of chunks) {
-
       const web =
         chunk?.web;
 
@@ -703,7 +746,6 @@ async function callGemini(
         web?.uri &&
         web?.title
       ) {
-
         sources.push({
           title: web.title,
           url: web.uri
@@ -717,7 +759,6 @@ async function callGemini(
     };
 
   } finally {
-
     clearTimeout(timeout);
   }
 }
@@ -727,7 +768,6 @@ async function callGemini(
 ========================================================= */
 
 function shouldRetry(error) {
-
   return [
     429,
     500,
@@ -742,7 +782,6 @@ function shouldRetry(error) {
 }
 
 function wait(ms) {
-
   return new Promise(
     resolve =>
       setTimeout(
@@ -755,7 +794,6 @@ function wait(ms) {
 async function askGemini(
   contents
 ) {
-
   let lastError = null;
 
   for (
@@ -763,16 +801,13 @@ async function askGemini(
     attempt <= MAX_RETRIES;
     attempt++
   ) {
-
     try {
-
       return await callGemini(
         PRIMARY_MODEL,
         contents
       );
 
     } catch (error) {
-
       lastError = error;
 
       console.warn(
@@ -801,14 +836,12 @@ async function askGemini(
   );
 
   try {
-
     return await callGemini(
       FALLBACK_MODEL,
       contents
     );
 
   } catch (error) {
-
     console.error(
       "❌ فشل النموذج الاحتياطي:",
       error.message
@@ -827,9 +860,7 @@ async function askGemini(
 app.get(
   "/health",
   (req, res) => {
-
     res.json({
-
       ok: true,
 
       service:
@@ -866,25 +897,28 @@ app.get(
 app.post(
   "/ask",
   async (req, res) => {
-
     const startedAt =
       Date.now();
 
     try {
+      /* =====================================================
+         التأكد من وجود المفتاح
+      ===================================================== */
 
       if (!GEMINI_API_KEY) {
-
         return res
           .status(500)
           .json({
-
             ok: false,
 
             answer:
-              "الوكيل يحتاج إلى تفعيل مفتاح Gemini في إعدادات Render."
-
+              "الوكيل يحتاج إلى GEMINI_API_KEY في إعدادات الاستضافة."
           });
       }
+
+      /* =====================================================
+         قراءة السؤال
+      ===================================================== */
 
       const question =
         typeof req.body?.question ===
@@ -893,16 +927,13 @@ app.post(
           : "";
 
       if (!question) {
-
         return res
           .status(400)
           .json({
-
             ok: false,
 
             answer:
               "اكتب سؤالك وخلي الباقي عليّ 😄"
-
           });
       }
 
@@ -910,16 +941,13 @@ app.post(
         question.length >
         4000
       ) {
-
         return res
           .status(400)
           .json({
-
             ok: false,
 
             answer:
               "السؤال طويل جدًا 😄 اختصره قليلًا وسأرتبه لك."
-
           });
       }
 
@@ -928,7 +956,7 @@ app.post(
       );
 
       /* =====================================================
-         ذاكرة السؤال المتكرر
+         الذاكرة
       ===================================================== */
 
       const cached =
@@ -937,13 +965,11 @@ app.post(
         );
 
       if (cached) {
-
         console.log(
           "⚡ تم استخدام إجابة من الذاكرة"
         );
 
         return res.json({
-
           ok: true,
 
           answer:
@@ -953,7 +979,6 @@ app.post(
             cached.sources,
 
           meta: {
-
             cached: true,
 
             products_found: 0,
@@ -961,9 +986,7 @@ app.post(
             response_time_ms:
               Date.now() -
               startedAt
-
           }
-
         });
       }
 
@@ -982,7 +1005,7 @@ app.post(
       );
 
       /* =====================================================
-         بناء السؤال
+         بناء السياق
       ===================================================== */
 
       const context =
@@ -1014,7 +1037,7 @@ app.post(
         );
 
       /* =====================================================
-         تخزين الإجابة
+         حفظ الإجابة
       ===================================================== */
 
       saveCachedAnswer(
@@ -1032,7 +1055,6 @@ app.post(
       );
 
       return res.json({
-
         ok: true,
 
         answer:
@@ -1042,7 +1064,6 @@ app.post(
           result.sources,
 
         meta: {
-
           cached: false,
 
           products_found:
@@ -1054,69 +1075,98 @@ app.post(
 
           response_time_ms:
             duration
-
         }
-
       });
 
     } catch (error) {
-
       const duration =
         Date.now() -
         startedAt;
 
       console.error(
-        `❌ خطأ بعد ${duration}ms:`,
+        `❌ خطأ بعد ${duration}ms`
+      );
+
+      console.error(
+        "❌ الرسالة:",
         error.message
       );
 
+      console.error(
+        "❌ الحالة:",
+        error.status || "غير معروفة"
+      );
+
       let message =
-        "صار في تأخير بسيط بالوكيل 😄 جرّب السؤال مرة ثانية.";
+        "صار في مشكلة بالوكيل 😄 جرّب السؤال مرة ثانية.";
 
       if (
         error?.status === 401 ||
         error?.status === 403
       ) {
-
         message =
-          "يوجد مشكلة في مفتاح Gemini الموجود في Render.";
+          "مفتاح Gemini غير صالح أو غير مفعّل.";
       }
 
       else if (
         error?.status === 429
       ) {
-
         message =
-          "الوكيل عليه ضغط حاليًا 😄 جرّب بعد لحظات.";
+          "تم الوصول إلى حد استخدام Gemini حاليًا. جرّب بعد قليل.";
       }
 
       else if (
         error?.name ===
         "AbortError"
       ) {
-
         message =
           "الوكيل أخذ وقتًا أطول من المعتاد 😄 أعد المحاولة.";
+      }
+
+      else if (
+        error?.status === 404
+      ) {
+        message =
+          "نموذج Gemini المطلوب غير متاح لهذا المفتاح.";
       }
 
       return res
         .status(500)
         .json({
-
           ok: false,
 
           answer:
             message,
 
-          meta: {
+          error:
+            error.message,
 
+          status:
+            error.status || 500,
+
+          meta: {
             response_time_ms:
               duration
-
           }
-
         });
     }
+  }
+);
+
+/* =========================================================
+   صفحة خطأ بسيطة
+========================================================= */
+
+app.use(
+  (req, res) => {
+    res
+      .status(404)
+      .json({
+        ok: false,
+
+        answer:
+          "المسار المطلوب غير موجود."
+      });
   }
 );
 
@@ -1127,8 +1177,8 @@ app.post(
 app.listen(
   PORT,
   () => {
-
     console.log("");
+
     console.log(
       "======================================"
     );
