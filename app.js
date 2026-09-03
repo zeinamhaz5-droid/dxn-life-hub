@@ -209,7 +209,20 @@ function renderProducts() {
       .map(product => `
 
         <article class="product-card">
-
+${
+  product.image
+    ? `
+      <div class="product-image">
+        <img
+          src="${escapeAttr(product.image)}"
+          alt="${escapeAttr(product.name_ar || product.catalog_name || "منتج DXN")}"
+          loading="lazy"
+          onerror="this.parentElement.style.display='none';"
+        >
+      </div>
+    `
+    : ""
+}
           <div class="product-top">
 
             <span class="category">
