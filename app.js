@@ -137,265 +137,125 @@ function setCategory(category) {
 
 function renderProducts() {
   const grid = document.getElementById("grid");
+  const searchInput = document.getElementById("search");
+
   if (!grid) return;
 
-  if (!products || products.length === 0) {
-    grid.innerHTML = "<p>لا توجد منتجات متاحة حاليًا.</p>";
+  const search = (searchInput?.value || "").trim().toLowerCase();
+
+  const filtered = products.filter(product => {
+    const text = `
+      ${product.name_ar || ""}
+      ${product.catalog_name || ""}
+      ${product.category || ""}
+      ${product.general_info || ""}
+    `.toLowerCase();
+
+    const matchesSearch =
+      !search || text.includes(search);
+
+    const matchesCategory =
+      activeCategory === "الكل" ||
+      product.category === activeCategory;
+
+    return matchesSearch && matchesCategory;
+  });
+
+  if (!filtered.length) {
+    grid.innerHTML = `
+      <p>لم يتم العثور على منتج مطابق.</p>
+    `;
     return;
   }
 
-  grid.innerHTML = products.map(product => `
+  grid.innerHTML = filtered.map(product => `
     <article class="product-card">
-      <h3>${escapeHTML(product.name_ar || product.name || product.catalog_name || "")}</h3>
 
-      ${product.category
-        ? `<p><strong>الفئة:</strong> ${escapeHTML(product.category)}</p>`
-        : ""
+      <div class="product-top">
+
+        <span class="category">
+          ${escapeHTML(product.category || "")}
+        </span>
+
+        <span class="status">
+          ${escapeHTML(
+            product.verification_status ||
+            "بانتظار التحقق الرسمي"
+          )}
+        </span>
+
+      </div>
+
+      <h3>
+        ${escapeHTML(
+          product.name_ar ||
+          product.catalog_name ||
+          ""
+        )}
+      </h3>
+
+      <p class="price">
+        ${
+          product.price_non_member != null
+            ? escapeHTML(product.price_non_member) + " $"
+            : "السعر غير متوفر"
+        }
+      </p>
+
+      ${
+        product.general_info
+          ? `<p>${escapeHTML(product.general_info)}</p>`
+          : ""
       }
 
-      ${product.price_non_member != null
-        ? `<p class="price"><strong>السعر:</strong> ${escapeHTML(product.price_non_member)} $</p>`
-        : ""
-      }
+      <details>
+        <summary>المعلومات العامة</summary>
 
-      ${product.general_info
-        ? `<p>${escapeHTML(product.general_info)}</p>`
-        : ""
-      }
+        <p>
+          ${escapeHTML(
+            product.general_info ||
+            "لا توجد معلومات عامة موثقة متاحة حاليًا."
+          )}
+        </p>
+
+        ${
+          product.information_source
+            ? `
+              <small>
+                المصدر:
+                <a
+                  href="${escapeAttr(product.information_source)}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  مصدر DXN
+                </a>
+              </small>
+            `
+            : ""
+        }
+
+      </details>
 
       <button
         type="button"
-        onclick="selectProductForLead('${escapeAttr(product.name_ar || product.name || product.catalog_name || "")}')">
+        onclick="selectProductForLead('${escapeAttr(
+          product.name_ar ||
+          product.catalog_name ||
+          ""
+        )}')"
+      >
         👤 أضف كمنتج مهتم به
       </button>
+
     </article>
   `).join("");
 }
 
-  const grid =
-    document.getElementById("grid");
-
-  const searchInput =
-    document.getElementById("search");
-
-  if (!grid) return;
-
-  const search = (
-
-    searchInput?.value || ""
-
-  )
-    .trim()
-    .toLowerCase();
-
-
-  const filtered =
-    products.filter(product => {
-
-      const text = `
-
-        ${product.name_ar || ""}
-
-        ${product.catalog_name || ""}
-
-        ${product.category || ""}
-
-        ${product.general_info || ""}
-
-      `.toLowerCase();
-
-
-      const matchesSearch =
-        !search ||
-        text.includes(search);
-
-
-      const matchesCategory =
-        activeCategory === "الكل" ||
-        product.category ===
-          activeCategory;
-
-
-      return (
-        matchesSearch &&
-        matchesCategory
-      );
-
-    });
-
-
-  if (!filtered.length) {
-
-    grid.innerHTML = `
-      <p>
-        لم يتم العثور على منتج مطابق.
-      </p>
-    `;
-
-    return;
-
-  }
-
-
-  grid.innerHTML =
-
-    filtered
-
-      .map(product => `
-
-        <article class="product-card">
-${
-  product.image
-    ? `
-      <div class="product-image">
-        <img
-          src="${escapeAttr(product.image)}"
-          alt="${escapeAttr(product.name_ar || product.catalog_name || "منتج DXN")}"
-          loading="lazy"
-          onerror="this.parentElement.style.display='none';"
-        >
-      </div>
-    `
-    : ""
-}
-          <div class="product-top">
-
-            <span class="category">
-
-              ${escapeHTML(
-                product.category || ""
-              )}
-
-            </span>
-
-
-            <span class="status">
-
-              ${escapeHTML(
-
-                product.verification_status ||
-
-                "بانتظار التحقق الرسمي"
-
-              )}
-
-            </span>
-
-          </div>
-
-
-          <h3>
-
-            ${escapeHTML(
-
-              product.name_ar ||
-
-              product.catalog_name ||
-
-              ""
-
-            )}
-
-          </h3>
-
-
-          <p class="price">
-
-            ${
-              product.price_non_member != null
-
-                ? escapeHTML(
-                    product.price_non_member
-                  ) + " $"
-
-                : "السعر غير متوفر"
-            }
-
-          </p>
-
-
-          ${
-            product.general_info
-
-              ? `
-
-                <p>
-
-                  ${escapeHTML(
-                    product.general_info
-                  )}
-
-                </p>
-
-              `
-
-              : ""
-
-          }
-
-
-          <details>
-
-            <summary>
-              المعلومات العامة
-            </summary>
-
-
-            <p>
-
-              ${escapeHTML(
-
-                product.general_info ||
-
-                "لا توجد معلومات عامة موثقة متاحة حاليًا."
-
-              )}
-
-            </p>
-
-
-            ${
-              product.information_source
-
-                ? `
-
-                  <small>
-
-                    المصدر:
-
-                    <a
-                      href="${escapeAttr(
-                        product.information_source
-                      )}"
-                      target="_blank"
-                      rel="noopener noreferrer">
-
-                      مصدر DXN
-
-                    </a>
-
-                  </small>
-
-                `
-
-                : ""
-
-            }
-
-          </details>
-
-        </article>
-
-      `)
-
-      .join("");
-
-}
-
-
 /* =========================
    العداد التنازلي
 ========================= */
+
 
 let countdownTimer = null;
 
