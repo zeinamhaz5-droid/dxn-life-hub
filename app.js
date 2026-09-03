@@ -136,6 +136,41 @@ function setCategory(category) {
 ========================= */
 
 function renderProducts() {
+  const grid = document.getElementById("grid");
+  if (!grid) return;
+
+  if (!products || products.length === 0) {
+    grid.innerHTML = "<p>لا توجد منتجات متاحة حاليًا.</p>";
+    return;
+  }
+
+  grid.innerHTML = products.map(product => `
+    <article class="product-card">
+      <h3>${escapeHTML(product.name_ar || product.name || product.catalog_name || "")}</h3>
+
+      ${product.category
+        ? `<p><strong>الفئة:</strong> ${escapeHTML(product.category)}</p>`
+        : ""
+      }
+
+      ${product.price_non_member != null
+        ? `<p class="price"><strong>السعر:</strong> ${escapeHTML(product.price_non_member)} $</p>`
+        : ""
+      }
+
+      ${product.general_info
+        ? `<p>${escapeHTML(product.general_info)}</p>`
+        : ""
+      }
+
+      <button
+        type="button"
+        onclick="selectProductForLead('${escapeAttr(product.name_ar || product.name || product.catalog_name || "")}')">
+        👤 أضف كمنتج مهتم به
+      </button>
+    </article>
+  `).join("");
+}
 
   const grid =
     document.getElementById("grid");
