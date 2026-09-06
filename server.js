@@ -8,7 +8,12 @@ const {
   isCapabilityQuestion,
   isDXNGeneralQuestion,
   isTrainingRequest,
-  detectIntent
+  detectIntent,
+  detectUserRole,
+  detectTrainingType,
+  detectTopic,
+  detectExperienceLevel,
+  understandMessage
 } = require("./ai/understanding");
 const app = express();
 
