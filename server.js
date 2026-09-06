@@ -42,7 +42,7 @@ const FALLBACK_MODEL = "gemini-3.1-flash-lite";
 const MAX_OUTPUT_TOKENS = 1200;
 
 // سرعة الاستجابة — لا نريد انتظارًا طويلًا
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 0;
 
 const MAX_SESSIONS = 1000;
