@@ -1553,7 +1553,8 @@ function thinkingLevel(
 function buildPrompt(
   question,
   session,
-  products
+  products,
+  trainingContext = ""
 ) {
 
   const productData =
