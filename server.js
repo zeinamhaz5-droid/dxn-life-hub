@@ -2,12 +2,10 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+
 const {
-  normalizeArabic,
-  isIdentityQuestion,
   isCapabilityQuestion,
   isDXNGeneralQuestion,
-  isTrainingRequest,
   detectIntent,
   detectUserRole,
   detectTrainingType,
@@ -15,6 +13,7 @@ const {
   detectExperienceLevel,
   understandMessage
 } = require("./ai/understanding");
+
 const {
   createTrainingState,
   startTraining,
@@ -27,29 +26,42 @@ const {
   setDailyAction,
   setFeedback
 } = require("./ai/training");
+
 const app = express();
 
-const PORT = process.env.PORT || 10000;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const PORT =
+  process.env.PORT || 10000;
+
+const GEMINI_API_KEY =
+  process.env.GEMINI_API_KEY;
+
 
 // ============================================================
 // DXN LIFE HUB — SMART AI AGENT
 // ============================================================
 
-const PRIMARY_MODEL = "gemini-3.5-flash-lite";
-const FALLBACK_MODEL = "gemini-3.1-flash-lite";
+const PRIMARY_MODEL =
+  "gemini-3.5-flash-lite";
+
+const FALLBACK_MODEL =
+  "gemini-3.1-flash-lite";
 
 const MAX_OUTPUT_TOKENS = 1200;
 
-// سرعة الاستجابة — لا نريد انتظارًا طويلًا
+// سرعة الاستجابة
 const REQUEST_TIMEOUT_MS = 30000;
+
 const MAX_RETRIES = 0;
 
 const MAX_SESSIONS = 1000;
+
 const MAX_HISTORY_TURNS = 8;
+
 const MAX_HISTORY_CHARS = 1400;
 
-const CACHE_TTL = 20 * 60 * 1000;
+const CACHE_TTL =
+  20 * 60 * 1000;
+
 const MAX_CACHE = 300;
 
 
@@ -63,31 +75,39 @@ app.use(
   })
 );
 
-app.use(express.static(__dirname));
+app.use(
+  express.static(__dirname)
+);
 
 
 // ============================================================
 // KNOWLEDGE BASE
 // ============================================================
 
-const KNOWLEDGE_PATH = path.join(
-  __dirname,
-  "knowledge_base.json"
-);
+const KNOWLEDGE_PATH =
+  path.join(
+    __dirname,
+    "knowledge_base.json"
+  );
 
 let knowledgeBase = {
   products: [],
   policy: ""
 };
 
-function loadKnowledgeBase() {
-  try {
-    const raw = fs.readFileSync(
-      KNOWLEDGE_PATH,
-      "utf8"
-    );
 
-    const data = JSON.parse(raw);
+function loadKnowledgeBase() {
+
+  try {
+
+    const raw =
+      fs.readFileSync(
+        KNOWLEDGE_PATH,
+        "utf8"
+      );
+
+    const data =
+      JSON.parse(raw);
 
     knowledgeBase =
       data &&
@@ -128,6 +148,7 @@ function loadKnowledgeBase() {
   }
 }
 
+
 loadKnowledgeBase();
 
 
@@ -135,7 +156,9 @@ loadKnowledgeBase();
 // ARABIC NORMALIZATION
 // ============================================================
 
-function normalizeArabic(text = "") {
+function normalizeArabic(
+  text = ""
+) {
 
   return String(text)
 
@@ -190,7 +213,8 @@ function tokenize(text) {
   return normalizeArabic(text)
     .split(" ")
     .filter(
-      word => word.length >= 2
+      word =>
+        word.length >= 2
     );
 }
 
@@ -199,17 +223,24 @@ function tokenize(text) {
 // TYPO / FUZZY MATCHING
 // ============================================================
 
-function levenshteinDistance(a, b) {
+function levenshteinDistance(
+  a,
+  b
+) {
 
   a = normalizeArabic(a);
   b = normalizeArabic(b);
 
   if (!a) return b.length;
+
   if (!b) return a.length;
 
   const previous =
     Array.from(
-      { length: b.length + 1 },
+      {
+        length:
+          b.length + 1
+      },
       (_, i) => i
     );
 
@@ -228,7 +259,8 @@ function levenshteinDistance(a, b) {
     ) {
 
       const cost =
-        a[i - 1] === b[j - 1]
+        a[i - 1] ===
+        b[j - 1]
           ? 0
           : 1;
 
@@ -251,11 +283,16 @@ function levenshteinDistance(a, b) {
     }
   }
 
-  return previous[b.length];
+  return previous[
+    b.length
+  ];
 }
 
 
-function typoSimilarity(a, b) {
+function typoSimilarity(
+  a,
+  b
+) {
 
   a = normalizeArabic(a);
   b = normalizeArabic(b);
@@ -338,7 +375,6 @@ function isTrainingRequest(
     /تدرب/.test(q) ||
     /تدريب/.test(q) ||
     /علمني/.test(q) ||
-    /درّبني/.test(q) ||
     /دربني/.test(q) ||
     /بدي اتعلم/.test(q) ||
     /اريد اتعلم/.test(q) ||
@@ -353,7 +389,9 @@ function isTrainingRequest(
 // PRODUCT SEARCH
 // ============================================================
 
-function productText(product) {
+function productText(
+  product
+) {
 
   return normalizeArabic(
 
@@ -382,7 +420,9 @@ function scoreProduct(
 ) {
 
   const q =
-    normalizeArabic(question);
+    normalizeArabic(
+      question
+    );
 
   const words =
     tokenize(question);
@@ -421,7 +461,9 @@ function scoreProduct(
   }
 
   // المطابقة الطبيعية
-  for (const word of words) {
+  for (
+    const word of words
+  ) {
 
     if (
       word.length >= 3 &&
@@ -447,7 +489,6 @@ function scoreProduct(
   }
 
   // المطابقة مع الأخطاء الإملائية
-  // نستخدمها فقط عندما لا توجد مطابقة قوية
   if (
     score < 20 &&
     name
@@ -478,7 +519,6 @@ function scoreProduct(
           continue;
         }
 
-        // منع المطابقات الغريبة جدًا
         if (
           Math.abs(
             word.length -
@@ -506,7 +546,7 @@ function scoreProduct(
 
   // السعر
   if (
-    /سعر|اسعار|اسعار|بكم|تكلف|ثمن|price|cost/i
+    /سعر|اسعار|بكم|تكلف|ثمن|price|cost/i
       .test(question)
   ) {
 
@@ -529,19 +569,22 @@ function findRelevantProducts(
 
   return knowledgeBase.products
 
-    .map(product => ({
+    .map(
+      product => ({
 
-      product,
+        product,
 
-      score:
-        scoreProduct(
-          product,
-          question
-        )
-    }))
+        score:
+          scoreProduct(
+            product,
+            question
+          )
+      })
+    )
 
     .filter(
-      item => item.score > 0
+      item =>
+        item.score > 0
     )
 
     .sort(
@@ -549,10 +592,14 @@ function findRelevantProducts(
         b.score - a.score
     )
 
-    .slice(0, limit)
+    .slice(
+      0,
+      limit
+    )
 
     .map(
-      item => item.product
+      item =>
+        item.product
     );
 }
 
@@ -561,24 +608,31 @@ function findRelevantProducts(
 // SAFE PRODUCT DATA
 // ============================================================
 
-function compactProduct(product) {
+function compactProduct(
+  product
+) {
 
   return {
 
     id:
-      product.id || null,
+      product.id ||
+      null,
 
     name_ar:
-      product.name_ar || null,
+      product.name_ar ||
+      null,
 
     official_name:
-      product.official_name || null,
+      product.official_name ||
+      null,
 
     catalog_name:
-      product.catalog_name || null,
+      product.catalog_name ||
+      null,
 
     category:
-      product.category || null,
+      product.category ||
+      null,
 
     price_non_member:
       product.price_non_member ??
@@ -631,7 +685,8 @@ function compactProduct(product) {
 // REAL CONVERSATION MEMORY
 // ============================================================
 
-const sessions = new Map();
+const sessions =
+  new Map();
 
 
 function newSessionId() {
@@ -648,7 +703,8 @@ function getSessionId(
 ) {
 
   const cookie =
-    req.headers.cookie || "";
+    req.headers.cookie ||
+    "";
 
   const match =
     cookie.match(
@@ -673,42 +729,87 @@ function getSessionId(
 }
 
 
-function getSession(id) {
+function getSession(
+  id
+) {
 
-  if (!sessions.has(id)) {
+  if (
+    !sessions.has(id)
+  ) {
 
     sessions.set(
       id,
       {
+
         history: [],
 
         lastUsed:
           Date.now(),
 
-        // ====================================================
-        // ذاكرة التدريب
-        // ====================================================
+        role:
+          null,
+
         training: {
 
-          active: false,
+          active:
+            false,
 
-          level: 1,
+          level:
+            1,
 
-          score: 0,
+          score:
+            0,
 
-          totalAttempts: 0,
+          totalAttempts:
+            0,
 
-          strengths: [],
+          correctAnswers:
+            0,
 
-          weaknesses: [],
+          strengths:
+            [],
 
-          focus: "",
+          weaknesses:
+            [],
 
-          currentScenario: "",
+          focus:
+            "",
 
-          lastTopic: "",
+          currentScenario:
+            "",
 
-          lastScore: null
+          currentTopic:
+            "",
+
+          lastTopic:
+            "",
+
+          currentSkill:
+            "",
+
+          currentQuestion:
+            "",
+
+          lastQuestionType:
+            "",
+
+          lastScore:
+            null,
+
+          consecutiveGoodAnswers:
+            0,
+
+          consecutiveWeakAnswers:
+            0,
+
+          levelReady:
+            false,
+
+          dailyAction:
+            "",
+
+          lastFeedback:
+            ""
         }
       }
     );
@@ -718,30 +819,20 @@ function getSession(id) {
     sessions.get(id);
 
   // حماية الجلسات القديمة
-  if (!session.training) {
+  if (
+    !session.training
+  ) {
 
-    session.training = {
+    session.training =
+      createTrainingState();
+  }
 
-      active: false,
+  if (
+    session.role === undefined
+  ) {
 
-      level: 1,
-
-      score: 0,
-
-      totalAttempts: 0,
-
-      strengths: [],
-
-      weaknesses: [],
-
-      focus: "",
-
-      currentScenario: "",
-
-      lastTopic: "",
-
-      lastScore: null
-    };
+    session.role =
+      null;
   }
 
   session.lastUsed =
@@ -792,14 +883,14 @@ function historyText(
 
   return session.history
 
-    .map(item =>
+    .map(
+      item =>
 
-      `${
-        item.role === "user"
-          ? "المستخدم"
-          : "المساعد"
-      }: ${item.text}`
-
+        `${
+          item.role === "user"
+            ? "المستخدم"
+            : "المساعد"
+        }: ${item.text}`
     )
 
     .join("\n");
@@ -816,13 +907,19 @@ function cleanMemoryList(
 
   return [
     ...new Set(
+
       (list || [])
+
         .filter(Boolean)
+
         .map(
           item =>
             String(item)
               .trim()
-              .slice(0, 160)
+              .slice(
+                0,
+                160
+              )
         )
     )
   ].slice(-6);
@@ -838,17 +935,15 @@ function updateTrainingMemory(
     !result ||
     !session.training
   ) {
+
     return;
   }
 
   const answer =
     String(
-      result.answer || ""
+      result.answer ||
+      ""
     );
-
-  // ==========================================================
-  // نقرأ إشارات داخلية إذا أرسلها النموذج
-  // ==========================================================
 
   const levelMatch =
     answer.match(
@@ -932,7 +1027,13 @@ function updateTrainingMemory(
     session.training.lastTopic =
       topicMatch[1]
         .trim()
-        .slice(0, 160);
+        .slice(
+          0,
+          160
+        );
+
+    session.training.currentTopic =
+      session.training.lastTopic;
   }
 
 
@@ -957,7 +1058,10 @@ function updateTrainingMemory(
     session.training.focus =
       weaknessMatch[1]
         .trim()
-        .slice(0, 160);
+        .slice(
+          0,
+          160
+        );
   }
 
 
@@ -966,7 +1070,10 @@ function updateTrainingMemory(
     session.training.currentScenario =
       scenarioMatch[1]
         .trim()
-        .slice(0, 300);
+        .slice(
+          0,
+          300
+        );
   }
 
 
@@ -993,13 +1100,17 @@ function trainingMemoryText(
 
   const levelNames = {
 
-    1: "مبتدئ",
+    1:
+      "مبتدئ",
 
-    2: "متوسط",
+    2:
+      "متوسط",
 
-    3: "متقدم",
+    3:
+      "متقدم",
 
-    4: "قائد"
+    4:
+      "قائد"
   };
 
   return `
@@ -1060,7 +1171,9 @@ function cacheKey(
 
   return crypto
 
-    .createHash("sha256")
+    .createHash(
+      "sha256"
+    )
 
     .update(
       `${sessionId}|${normalizeArabic(question)}`
@@ -1082,7 +1195,9 @@ function getCached(
     );
 
   const item =
-    answerCache.get(key);
+    answerCache.get(
+      key
+    );
 
   if (!item) {
 
@@ -1095,7 +1210,9 @@ function getCached(
     CACHE_TTL
   ) {
 
-    answerCache.delete(key);
+    answerCache.delete(
+      key
+    );
 
     return null;
   }
@@ -1119,7 +1236,9 @@ function setCached(
 
     {
       ...value,
-      time: Date.now()
+
+      time:
+        Date.now()
     }
   );
 
@@ -1141,74 +1260,80 @@ function setCached(
 // MEMORY CLEANUP
 // ============================================================
 
-setInterval(() => {
+setInterval(
+  () => {
 
-  const now =
-    Date.now();
+    const now =
+      Date.now();
 
-  for (
-    const [
-      id,
-      session
-    ] of sessions
-  ) {
-
-    if (
-      now -
-        session.lastUsed >
-      6 *
-        60 *
-        60 *
-        1000
+    for (
+      const [
+        id,
+        session
+      ] of sessions
     ) {
 
-      sessions.delete(id);
+      if (
+        now -
+          session.lastUsed >
+        6 *
+          60 *
+          60 *
+          1000
+      ) {
+
+        sessions.delete(
+          id
+        );
+      }
     }
-  }
 
-  for (
-    const [
-      key,
-      item
-    ] of answerCache
-  ) {
-
-    if (
-      now -
-        item.time >
-      CACHE_TTL
+    for (
+      const [
+        key,
+        item
+      ] of answerCache
     ) {
 
-      answerCache.delete(key);
-    }
-  }
+      if (
+        now -
+          item.time >
+        CACHE_TTL
+      ) {
 
-  while (
-    sessions.size >
-    MAX_SESSIONS
-  ) {
-
-    const oldest =
-      [
-        ...sessions.entries()
-      ]
-
-        .sort(
-          (a, b) =>
-            a[1].lastUsed -
-            b[1].lastUsed
-        )[0];
-
-    if (!oldest) {
-      break;
+        answerCache.delete(
+          key
+        );
+      }
     }
 
-    sessions.delete(
-      oldest[0]
-    );
-  }
+    while (
+      sessions.size >
+      MAX_SESSIONS
+    ) {
 
-}, 10 * 60 * 1000);
+      const oldest =
+        [
+          ...sessions.entries()
+        ]
+          .sort(
+            (a, b) =>
+              a[1].lastUsed -
+              b[1].lastUsed
+          )[0];
+
+      if (!oldest) {
+        break;
+      }
+
+      sessions.delete(
+        oldest[0]
+      );
+    }
+
+  },
+  10 * 60 * 1000
+);
 
 
 // ============================================================
@@ -1410,6 +1535,44 @@ const SYSTEM_INSTRUCTION = `
 
 يمكن الانتقال بين الحالتين أثناء نفس المحادثة.
 
+إذا قال المستخدم صراحة:
+«أنا زبون»
+أو
+«أنا عميل»
+
+تعامل معه كزبون ولا تبدأ تدريبًا.
+
+رحّب به واسأله سؤالًا قصيرًا لاكتشاف حاجته، مثل:
+ما المنتج الذي يبحث عنه؟
+أم يريد معرفة السعر؟
+أم يريد مساعدة في اختيار منتج مناسب؟
+
+إذا قال:
+«أنا متدرب»
+أو
+«دربني»
+أو
+«بدي اتعلم»
+
+تعامل معه كمتدرب.
+
+رحّب به وابدأ التدريب تدريجيًا، أو اسأله باختصار ماذا يريد أن يتعلم إذا لم يكن الهدف واضحًا.
+
+إذا لم يحدد المستخدم دوره، استنتج دوره من سياق الكلام.
+
+مثال:
+«قديش سعر القهوة؟»
+هذا غالبًا زبون.
+
+أما:
+«كيف اتعامل مع زبون قال السعر غالي؟»
+فهذا سؤال تدريبي حتى لو وردت كلمة زبون.
+
+لا تسأل المستخدم بشكل متكرر:
+«هل أنت زبون أم متدرب؟»
+
+اسأل فقط إذا كان السياق فعلًا غير واضح.
+
 ━━━━━━━━━━━━━━━━━━━━━━
 المنتجات
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -1547,6 +1710,55 @@ function thinkingLevel(
 
 
 // ============================================================
+// EXPERIENCE LEVEL MAPPING
+// ============================================================
+
+function mapExperienceToLevel(
+  experience
+) {
+
+  if (!experience) {
+    return null;
+  }
+
+  const value =
+    normalizeArabic(
+      experience
+    );
+
+  if (
+    value.includes("متقدم") ||
+    value.includes("advanced")
+  ) {
+    return 3;
+  }
+
+  if (
+    value.includes("متوسط") ||
+    value.includes("intermediate")
+  ) {
+    return 2;
+  }
+
+  if (
+    value.includes("قائد") ||
+    value.includes("leader")
+  ) {
+    return 4;
+  }
+
+  if (
+    value.includes("مبتدئ") ||
+    value.includes("beginner")
+  ) {
+    return 1;
+  }
+
+  return null;
+}
+
+
+// ============================================================
 // BUILD PROMPT
 // ============================================================
 
@@ -1563,7 +1775,10 @@ function buildPrompt(
       ? products
 
           .map(
-            (product, index) =>
+            (
+              product,
+              index
+            ) =>
 
               `[منتج ${index + 1}]\n` +
 
@@ -1595,6 +1810,36 @@ function buildPrompt(
 لا تجعل معلومات المنتجات أو المحادثة السابقة تشوش على ذلك.
 `
       : "";
+
+
+  const roleHint =
+    session.role === "customer"
+
+      ? `
+دور المستخدم الحالي: زبون.
+
+تعامل معه كزبون.
+
+لا تبدأ اختبارًا أو تدريبًا.
+
+ساعده في فهم المنتج أو السعر أو اختيار المنتج.
+
+إذا لم يحدد ما يريد، اسأله سؤالًا قصيرًا لاكتشاف حاجته.
+`
+
+      : session.role === "trainee"
+
+        ? `
+دور المستخدم الحالي: متدرب.
+
+تعامل معه كمتدرب.
+
+استخدم التدريب المتدرج والعملي.
+
+لا تعطه الإجابة دائمًا مباشرة عندما يكون المطلوب تدريبًا.
+`
+
+        : "";
 
 
   const trainingHint =
@@ -1638,10 +1883,17 @@ ${trainingMemory}
 ${trainingContext}
 
 ━━━━━━━━━━━━━━━━━━━━━━
+دور المستخدم
+━━━━━━━━━━━━━━━━━━━━━━
+
+${roleHint}
+
+━━━━━━━━━━━━━━━━━━━━━━
 سياق المحادثة
 ━━━━━━━━━━━━━━━━━━━━━━
 
 ${historyText(session)}
+
 ━━━━━━━━━━━━━━━━━━━━━━
 بيانات المشروع
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -1693,7 +1945,9 @@ function cleanAnswer(
   answer
 ) {
 
-  return String(answer || "")
+  return String(
+    answer || ""
+  )
 
     .replace(
       /\[\[TRAINING_LEVEL:\d\]\]/g,
@@ -1747,7 +2001,8 @@ async function callModel(
   model,
   prompt,
   level,
-  timeoutMs = REQUEST_TIMEOUT_MS
+  timeoutMs =
+    REQUEST_TIMEOUT_MS
 ) {
 
   if (
@@ -1759,7 +2014,8 @@ async function callModel(
         "GEMINI_API_KEY غير موجود"
       );
 
-    error.status = 500;
+    error.status =
+      500;
 
     throw error;
   }
@@ -1788,7 +2044,8 @@ async function callModel(
         url,
         {
 
-          method: "POST",
+          method:
+            "POST",
 
           headers: {
 
@@ -1798,7 +2055,6 @@ async function callModel(
             "x-goog-api-key":
               GEMINI_API_KEY
           },
-
 
           body:
             JSON.stringify({
@@ -1815,12 +2071,12 @@ async function callModel(
                 ]
               },
 
-
               contents: [
 
                 {
 
-                  role: "user",
+                  role:
+                    "user",
 
                   parts: [
 
@@ -1833,7 +2089,6 @@ async function callModel(
                 }
 
               ],
-
 
               generationConfig: {
 
@@ -1849,7 +2104,6 @@ async function callModel(
               }
 
             }),
-
 
           signal:
             controller.signal
@@ -1891,17 +2145,14 @@ async function callModel(
 
         );
 
-
       error.status =
         response.status;
-
 
       console.error(
         "❌ Gemini:",
         response.status,
         error.message
       );
-
 
       throw error;
     }
@@ -1917,7 +2168,8 @@ async function callModel(
         ?.parts
         ?.map(
           part =>
-            part?.text || ""
+            part?.text ||
+            ""
         )
         .join("")
         .trim();
@@ -1930,7 +2182,8 @@ async function callModel(
           "Gemini returned no text"
         );
 
-      error.status = 502;
+      error.status =
+        502;
 
       throw error;
     }
@@ -1940,7 +2193,9 @@ async function callModel(
 
   } finally {
 
-    clearTimeout(timer);
+    clearTimeout(
+      timer
+    );
   }
 }
 
@@ -2003,8 +2258,6 @@ async function askGemini(
     );
 
 
-    // لا ننتظر محاولة ثانية إذا كان السبب timeout
-    // حتى لا نتجاوز هدف السرعة
     if (
       error?.name ===
       "AbortError"
@@ -2014,7 +2267,6 @@ async function askGemini(
     }
 
 
-    // fallback سريع للأخطاء المؤقتة فقط
     if (
       retryable(error)
     ) {
@@ -2035,7 +2287,9 @@ async function askGemini(
             FALLBACK_MODEL
         };
 
-      } catch (fallbackError) {
+      } catch (
+        fallbackError
+      ) {
 
         console.error(
           "❌ Fallback:",
@@ -2065,7 +2319,8 @@ function publicError(
 
   const message =
     String(
-      error?.message || ""
+      error?.message ||
+      ""
     );
 
 
@@ -2076,8 +2331,7 @@ function publicError(
   ) {
 
     return (
-      "⚠️ وصلنا مؤقتًا إلى حد استخدام Gemini المجاني. "
-      +
+      "⚠️ وصلنا مؤقتًا إلى حد استخدام Gemini المجاني. " +
       "انتظر قليلًا ثم جرّب مرة أخرى."
     );
   }
@@ -2127,11 +2381,15 @@ function publicError(
 
 app.get(
   "/health",
-  (req, res) => {
+  (
+    req,
+    res
+  ) => {
 
     res.json({
 
-      ok: true,
+      ok:
+        true,
 
       service:
         "DXN Life Hub AI Agent",
@@ -2177,6 +2435,7 @@ app.get(
 
       sessions:
         sessions.size
+
     });
   }
 );
@@ -2188,7 +2447,10 @@ app.get(
 
 app.post(
   "/ask",
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
 
     const started =
       Date.now();
@@ -2209,7 +2471,8 @@ app.post(
         .status(400)
         .json({
 
-          ok: false,
+          ok:
+            false,
 
           answer:
             "اكتب سؤالك أولًا 😊"
@@ -2227,7 +2490,8 @@ app.post(
         .status(400)
         .json({
 
-          ok: false,
+          ok:
+            false,
 
           answer:
             "السؤال طويل جدًا. اختصره قليلًا."
@@ -2244,7 +2508,8 @@ app.post(
         .status(500)
         .json({
 
-          ok: false,
+          ok:
+            false,
 
           answer:
             "الوكيل يحتاج GEMINI_API_KEY في Render."
@@ -2253,36 +2518,102 @@ app.post(
     }
 
 
+    // ========================================================
+    // SESSION
+    // ========================================================
+
     const sessionId =
       getSessionId(
         req,
         res
       );
-const understanding = understandMessage(question);
 
-if (understanding.role) {
-  session.role = understanding.role;
-}
-
-if (
-  understanding.experienceLevel &&
-  understanding.role !== "customer"
-) {
-  session.training.level = understanding.experienceLevel;
-}
-
-if (understanding.intent === "training" || isTrainingRequest(question)) {
-  session.training = startTraining(session.training);
-}
-
-if (understanding.topic && understanding.topic !== "general") {
-  session.training.currentTopic = understanding.topic;
-}
 
     const session =
       getSession(
         sessionId
       );
+
+
+    // ========================================================
+    // UNDERSTANDING
+    // ========================================================
+
+    const understanding =
+      understandMessage(
+        question
+      );
+
+
+    // ========================================================
+    // ROLE
+    // ========================================================
+
+    if (
+      understanding.role
+    ) {
+
+      session.role =
+        understanding.role;
+    }
+
+
+    // ========================================================
+    // EXPERIENCE
+    // ========================================================
+
+    const mappedLevel =
+      mapExperienceToLevel(
+        understanding.experienceLevel
+      );
+
+
+    if (
+      mappedLevel &&
+      understanding.role !==
+        "customer"
+    ) {
+
+      session.training.level =
+        mappedLevel;
+    }
+
+
+    // ========================================================
+    // TRAINING
+    // ========================================================
+
+    if (
+      understanding.intent ===
+        "training" ||
+      isTrainingRequest(
+        question
+      )
+    ) {
+
+      session.role =
+        "trainee";
+
+      session.training =
+        startTraining(
+          session.training
+        );
+    }
+
+
+    // ========================================================
+    // TOPIC
+    // ========================================================
+
+    if (
+      understanding.topic &&
+      understanding.topic !==
+        "general"
+    ) {
+
+      session.training.currentTopic =
+        understanding.topic;
+    }
 
 
     console.log(
@@ -2321,17 +2652,22 @@ if (understanding.topic && understanding.topic !== "general") {
 
         return res.json({
 
-          ok: true,
+          ok:
+            true,
 
           answer,
 
-          products: [],
+          products:
+            [],
 
-          sources: [],
+          sources:
+            [],
 
-          cached: false,
+          cached:
+            false,
 
-          web_search: false,
+          web_search:
+            false,
 
           meta: {
 
@@ -2371,10 +2707,10 @@ if (understanding.topic && understanding.topic !== "general") {
           "⚡ إجابة من الذاكرة المؤقتة"
         );
 
-
         return res.json({
 
-          ok: true,
+          ok:
+            true,
 
           answer:
             cached.answer,
@@ -2402,6 +2738,7 @@ if (understanding.topic && understanding.topic !== "general") {
             response_time_ms:
               Date.now() -
               started
+
           }
 
         });
@@ -2417,6 +2754,9 @@ if (understanding.topic && understanding.topic !== "general") {
           question
         )
       ) {
+
+        session.role =
+          "trainee";
 
         session.training.active =
           true;
@@ -2450,22 +2790,31 @@ if (understanding.topic && understanding.topic !== "general") {
 
 
       // ======================================================
+      // TRAINING CONTEXT
+      // ======================================================
+
+      const trainingContext =
+        session.training?.active
+
+          ? `${buildTrainingInstruction(session.training)}
+${buildExecutiveSenseInstruction(session.training)}`
+
+          : "";
+
+
+      // ======================================================
       // PROMPT
       // ======================================================
 
-      
-const trainingContext = session.training?.active
-  ? `${buildTrainingInstruction(session.training)}
-${buildExecutiveSenseInstruction(session.training)}`
-  : "";
+      const prompt =
+        buildPrompt(
+          question,
+          session,
+          products,
+          trainingContext
+        );
 
-const prompt =
-  buildPrompt(
-    question,
-    session,
-    products,
-    trainingContext
-  );
+
       // ======================================================
       // GEMINI
       // ======================================================
@@ -2484,6 +2833,7 @@ const prompt =
       const rawAnswer =
         result.answer;
 
+
       const clean =
         cleanAnswer(
           rawAnswer
@@ -2498,6 +2848,7 @@ const prompt =
         session,
         {
           ...result,
+
           answer:
             rawAnswer
         }
@@ -2534,7 +2885,10 @@ const prompt =
               product.information_source
           )
 
-          .slice(0, 5)
+          .slice(
+            0,
+            5
+          )
 
           .map(
             product => ({
@@ -2546,6 +2900,7 @@ const prompt =
 
               url:
                 product.information_source
+
             })
           );
 
@@ -2622,18 +2977,22 @@ const prompt =
 
       return res.json({
 
-        ok: true,
+        ok:
+          true,
 
         ...responseData
 
       });
 
 
-    } catch (error) {
+    } catch (
+      error
+    ) {
 
       console.error(
         "❌ AI ERROR:",
-        error.status || "",
+        error.status ||
+          "",
         error.message
       );
 
@@ -2642,7 +3001,8 @@ const prompt =
         .status(500)
         .json({
 
-          ok: false,
+          ok:
+            false,
 
           answer:
             publicError(
@@ -2675,13 +3035,17 @@ const prompt =
 // ============================================================
 
 app.use(
-  (req, res) => {
+  (
+    req,
+    res
+  ) => {
 
     res
       .status(404)
       .json({
 
-        ok: false,
+        ok:
+          false,
 
         answer:
           "المسار المطلوب غير موجود."
