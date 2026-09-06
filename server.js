@@ -2,7 +2,14 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-
+const {
+  normalizeArabic,
+  isIdentityQuestion,
+  isCapabilityQuestion,
+  isDXNGeneralQuestion,
+  isTrainingRequest,
+  detectIntent
+} = require("./ai/understanding");
 const app = express();
 
 const PORT = process.env.PORT || 10000;
