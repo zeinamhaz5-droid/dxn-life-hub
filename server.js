@@ -2447,14 +2447,19 @@ if (understanding.topic && understanding.topic !== "general") {
       // PROMPT
       // ======================================================
 
-      const prompt =
-        buildPrompt(
-          question,
-          session,
-          products
-        );
+      
+const trainingContext = session.training?.active
+  ? `${buildTrainingInstruction(session.training)}
+${buildExecutiveSenseInstruction(session.training)}`
+  : "";
 
-
+const prompt =
+  buildPrompt(
+    question,
+    session,
+    products,
+    trainingContext
+  );
       // ======================================================
       // GEMINI
       // ======================================================
