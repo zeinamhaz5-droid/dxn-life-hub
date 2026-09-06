@@ -2252,7 +2252,26 @@ app.post(
         req,
         res
       );
+const understanding = understandMessage(question);
 
+if (understanding.role) {
+  session.role = understanding.role;
+}
+
+if (
+  understanding.experienceLevel &&
+  understanding.role !== "customer"
+) {
+  session.training.level = understanding.experienceLevel;
+}
+
+if (understanding.intent === "training" || isTrainingRequest(question)) {
+  session.training = startTraining(session.training);
+}
+
+if (understanding.topic && understanding.topic !== "general") {
+  session.training.currentTopic = understanding.topic;
+}
 
     const session =
       getSession(
