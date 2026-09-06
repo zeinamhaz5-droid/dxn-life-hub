@@ -15,6 +15,18 @@ const {
   detectExperienceLevel,
   understandMessage
 } = require("./ai/understanding");
+const {
+  createTrainingState,
+  startTraining,
+  stopTraining,
+  updateTrainingResult,
+  getTrainingSummary,
+  buildTrainingInstruction,
+  buildExecutiveSenseInstruction,
+  setCurrentQuestion,
+  setDailyAction,
+  setFeedback
+} = require("./ai/training");
 const app = express();
 
 const PORT = process.env.PORT || 10000;
